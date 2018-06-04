@@ -17,9 +17,11 @@ namespace HepsiSurada.Controllers
         [HttpGet]
         public IHttpActionResult Search(string q)
         {
+            int counter = 0;
             try
             {
                 if (q == null) return Json("Parametre verilmemiş.");
+                //Arama sonuçlarının geleceği sayfaya istek atıyoruz.
                 string url = "https://www.hepsiburada.com/ara?q=" + q;
                 WebClient client = new WebClient();
                 client.Encoding = Encoding.UTF8;
@@ -27,8 +29,10 @@ namespace HepsiSurada.Controllers
 
                 List<Products> productList = new List<Products>();
 
+                //Arama sonuçları sayfasının HTML içeriğini HTMLDocument'a dönüştürüyoruz. Paramparça edip ilgili ürünün detay sayfasına gidicez birazdan.
                 HtmlDocument doc = new HtmlDocument();
                 doc.LoadHtml(raw);
+                //Sayfadaki ürünleri aldık bir kenarı. Sırayla dönüp box ın içindeki a'nın href ini alıyoruz.
                 HtmlNodeCollection products = doc.DocumentNode.SelectSingleNode("//ul[contains(@class,'product-list')]").SelectNodes("li");
                 foreach (HtmlNode pd in products)
                 {
@@ -36,12 +40,14 @@ namespace HepsiSurada.Controllers
                     WebClient productDetailClient = new WebClient();
                     productDetailClient.Encoding = Encoding.UTF8;
                     string productDetailurl = pd.SelectSingleNode("div[contains(@class,'box product')]").SelectSingleNode("a").Attributes["href"].Value;
+                    //Ürünün detay sayfasına gidiyoruz.
                     productDetailurl = "https://www.hepsiburada.com" + productDetailurl;
                     string productDetailRaw = productDetailClient.DownloadString(productDetailurl);
                     HtmlDocument productDoc = new HtmlDocument();
                     productDoc.LoadHtml(productDetailRaw);
 
                     Products newProduct = new Products();
+                    //Burada ürün bilgilerine ulaşıyoruz artık. İsim , 1 resim, eğer indirim varsa indirimli hali yoksa normal fiyatı, ve daha sonra özellikleri. Özellikler ayrı tabloda tutuluyor.
                     newProduct.ProductName = productDoc.DocumentNode.SelectSingleNode("//h1[@id='product-name']").InnerText.Trim();
                     Products checkProduct = db.Products.FirstOrDefault(x => x.ProductName == newProduct.ProductName);
                     if (checkProduct != null) continue;
@@ -59,8 +65,9 @@ namespace HepsiSurada.Controllers
 
                     db.Products.Add(newProduct);
                     db.SaveChanges();
-                    
+                    counter++;
 
+                    //Özellikleri aldığımız yer.
                     HtmlNodeCollection tables = productDoc.DocumentNode.SelectNodes("//table[contains(@class,'data-list tech-spec')]");
                     foreach (HtmlNode table in tables)
                     {
@@ -80,10 +87,11 @@ namespace HepsiSurada.Controllers
                     #endregion
                 }
 
+                //Eğer tek sayfa değilse kaç sayfa var? Bu sayfa sayısı kadar for içinde dön ama 2.sayfadan başlıyoruz zaten 1'i dolaştık.Geri kalan işlemler yukarıdakiyle aynı.
                 HtmlNode pagination = doc.DocumentNode.SelectSingleNode("//div[@id='pagination']");
                 if (pagination != null)
                 {
-                    HtmlNodeCollection pages = pagination.SelectNodes("li");
+                    HtmlNodeCollection pages = pagination.SelectSingleNode("ul").SelectNodes("li");
                     HtmlNode lastPage = pages[pages.Count - 1];
                     int pageCount = Convert.ToInt32(lastPage.InnerText);
                     for (int i = 2; i <= pageCount; i++)
@@ -109,21 +117,24 @@ namespace HepsiSurada.Controllers
                             productDoc.LoadHtml(productDetailRaw);
 
                             Products newProduct = new Products();
-                            newProduct.ProductName = productDoc.DocumentNode.SelectSingleNode("//h1[@id='product-name']").InnerText;
+                            newProduct.ProductName = productDoc.DocumentNode.SelectSingleNode("//h1[@id='product-name']").InnerText.Trim();
+                            Products checkProduct = db.Products.FirstOrDefault(x => x.ProductName == newProduct.ProductName);
+                            if (checkProduct != null) continue;
                             newProduct.ProductImage = productDoc.DocumentNode.SelectSingleNode("//div[@id='productDetailsCarousel']").SelectSingleNode("a").SelectSingleNode("img").Attributes["data-img"].Value.Replace("#imgSize", "1024");
                             HtmlNode extraDiscount = productDoc.DocumentNode.SelectSingleNode("//div[contains(@class,'extra-discount-price')]");
-                            if (extraDiscount == null)
+                            if (extraDiscount == null || extraDiscount.InnerText == " TL")
                             {
                                 newProduct.ProductPrice = productDoc.DocumentNode.SelectSingleNode("//span[@id='offering-price']").Attributes["content"].Value.Trim();
                             }
                             else
                             {
-                                newProduct.ProductPrice = extraDiscount.InnerText.Trim(); ;
+                                newProduct.ProductPrice = extraDiscount.InnerText.Trim();
                             }
 
                             db.Products.Add(newProduct);
                             db.SaveChanges();
                             productList.Add(newProduct);
+                            counter++;
 
                             HtmlNodeCollection tables = productDoc.DocumentNode.SelectNodes("//table[contains(@class,'data-list tech-spec')]");
                             foreach (HtmlNode table in tables)
@@ -158,7 +169,7 @@ namespace HepsiSurada.Controllers
             }
             catch (Exception ex)
             {
-                return Json("Hata meydana geldi.");
+                return Json("Hata meydana geldi.Şimdiye kadar "+counter+" adet ürün kaydedildi.");
             }
         }
         
