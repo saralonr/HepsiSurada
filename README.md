@@ -7,5 +7,5 @@ HepsiBurada sitesindeki ürünlere ait bilgileri çeken Web API
 
 Not: 
 ```
-Bu yazılım tamamen eğitim amaçlı yapılmıştır.
+Bu yazılım tamamen eğitim amaçlı örnek olarak yapılmıştır.Kullanımdan doğabilecek sorumluluklar kullanıcıya aittir. 
 ```
