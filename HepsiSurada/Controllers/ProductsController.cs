@@ -51,7 +51,7 @@ namespace HepsiSurada.Controllers
                     newProduct.ProductName = productDoc.DocumentNode.SelectSingleNode("//h1[@id='product-name']").InnerText.Trim();
                     Products checkProduct = db.Products.FirstOrDefault(x => x.ProductName == newProduct.ProductName);
                     if (checkProduct != null) continue;
-                    HtmlNode dd = productDoc.DocumentNode.SelectSingleNode("//div[@id='productDetailsCarousel']").SelectSingleNode("a").SelectSingleNode("img");
+                    
                     newProduct.ProductImage = productDoc.DocumentNode.SelectSingleNode("//div[@id='productDetailsCarousel']").SelectSingleNode("a").SelectSingleNode("img").Attributes["data-img"].Value.Replace("#imgSize", "1024");
                     HtmlNode extraDiscount = productDoc.DocumentNode.SelectSingleNode("//div[contains(@class,'extra-discount-price')]");
                     if (extraDiscount == null || extraDiscount.InnerText == " TL")
